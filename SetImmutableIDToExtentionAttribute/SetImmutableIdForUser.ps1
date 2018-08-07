@@ -1,31 +1,29 @@
-<#
-
+ <#
 	.SYNOPSYS
-		Ce script a pour but de générer un ImmutableID pour un object spécifique 
-		afin de contrôler la synchronisation avec AZURE
-
+		Ce script a pour but de gÃ©nÃ©rer un ImmutableID pour un object spÃ©cifique 
+		afin de contrÃ´ler la synchronisation avec AZURE
 	.DESCIPTION
-		Ce script génère un ImmutableId pour un utilisateur spécifique fournis lors de l'exécution du script.
-		Le script récupère le l'ObjectGUID de l'utilisateur, le transforme en Base64 et enfin enregistre cet ImmutableId
-		dans l'attribut 'ExtentionAttribute1' ou tout autre attribut spécifié.
-
-		ATTENTION : Il est nécessaire d'indiquer à Azure Connect AD quel attribut il doit prendre en compte pour la synchronisation de l'annuaire.
-
+		Ce script gÃ©nÃ¨re un ImmutableId pour un utilisateur spÃ©cifique fournis lors de l'exÃ©cution du script.
+		Le script rÃ©cupÃ¨re le l'ObjectGUID de l'utilisateur, le transforme en Base64 et enfin enregistre cet ImmutableId
+		dans l'attribut 'ExtentionAttribute1' ou tout autre attribut spÃ©cifiÃ©.
+		ATTENTION : Il est nÃ©cessaire d'indiquer Ã  Azure Connect AD quel attribut il doit prendre en compte pour la synchronisation de l'annuaire.
 	.EXEMPLE
 		.\SetImmutableIDToExtentionAttribute "samAccountName"
-
 		Premier argument : Obligatoire. Le SamAccountName de l'utilisateur cible.
+		
+	.ATTENTION
+		Dans la variable $fullUpn, il est nÃ©cessaire de remplacer "@*.com" par votre domaine.
 		
 	.NOTES
 		Auteur : Matthieu ZILLIOX
-		Créé le : 27 juin 2016
+		CrÃ©Ã© le : 27 juin 2016
+        	ModifiÃ© le : 07 aoÃ›t 2018
 		Twitter : @matthieuzilliox
-
 #>
 
 Param (
     [Parameter(Mandatory=$true)]
-    [String]$sama    )
+    [String]$upn    )
 
 Import-Module ActiveDirectory
 
@@ -34,34 +32,29 @@ $Guid = ""
 $iid = ""
 $immutableID = ""
 
-function ConvertObjectGuidToBase64 ($data)
-{
-    $Guid = $data
-    $bytearray = $guid.tobytearray()
-    $immutableID = [system.convert]::ToBase64String($bytearray)
-}
-
 try
 {
-	$var = Get-ADUser -Identity $sama
+	$fullUpn = "$upn@*.com"
+	$var = Get-ADUser -Filter {UserPrincipalName -like $fullUpn}
 
 	$bytearray = $var.ObjectGUID.tobytearray()
 	$immutableID = [system.convert]::ToBase64String($bytearray)
 
 	Write-Host
-	Write-Host "L'ObjectGUID de" $sama "est :" $var.ObjectGUID.ToString()
-	Write-Host "L'immutable ID de" $sama "est :" $immutableID -ForegroundColor Cyan
+	Write-Host "L'ObjectGUID de" $var.UserPrincipalName "est :" $var.ObjectGUID.ToString()
+	Write-Host "L'immutable ID de" $var.UserPrincipalName "est :" $immutableID -ForegroundColor Cyan
 	Write-Host 
 	Write-Host "Enregistrement de l'immutableID... "
 
-	Set-AdUser -Identity $sama -Add @{extensionAttribute1 = $immutableID}
+	Set-AdUser -Identity $var.SamAccountName -Add @{extensionAttribute1 = $immutableID}
 
-	Write-host "Enregistrement effectué avec succès." -ForegroundColor Green
+	Write-host "Enregistrement effectuÃ© avec succÃ¨s." -ForegroundColor Green
 	Write-Host "Fin du script..." -ForegroundColor Green
 }
 catch
 {
+	Write-Host
+	Write-Host "--- ATTENTION ---"
 	Write-Host "Une erreur s'est produite. La voici :"
 	Write-Host $_.Exception.Message -ForegroundColor Red
-}
-
+} 
